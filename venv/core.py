@@ -3,6 +3,8 @@ import time
 from picamera import PiCamera
 from PIL import Image
 import imagehash
+import cv2
+import numpy as np
 
 # Configure GPIO
 GPIO.setmode(GPIO.BOARD)
@@ -12,6 +14,11 @@ for pin in RELAY_PINS:
 
 # Initialize the camera
 camera = PiCamera()
+
+def get_camera_frame():
+    output = np.empty((96, 160, 3), dtype=np.uint8)
+    camera.capture(output, 'rgb')
+    return Image.fromarray(output)
 
 def trigger_relay_module(relay_index):
     if relay_index < 0 or relay_index >= len(RELAY_PINS):

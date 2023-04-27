@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
 import core
+from threading import Thread
+from PIL import ImageTk
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -33,6 +35,14 @@ class Application(tk.Frame):
         self.discrepancy_label = tk.Label(self)
         self.discrepancy_label.place(x=500, y=350)
 
+        self.video_feed_label = tk.Label(self)
+        self.video_feed_label.place(x=300, y=50)
+
+        self.video_feed_button = tk.Button(self)
+        self.video_feed_button["text"] = "Start Video Feed"
+        self.video_feed_button["command"] = self.toggle_video_feed
+        self.video_feed_button.place(x=300, y=20, width=200, height=30)
+
     def update_labels(self):
         nominal_diff = core.get_difference(self.nominal_images) if self.nominal_images else 0
         discrepancy_diff = core.get_difference(self.discrepancy_images) if self.discrepancy_images else 0
@@ -53,6 +63,26 @@ class Application(tk.Frame):
         self.nominal_images = []
         self.discrepancy_images = []
         self.update_labels()
+
+    def toggle_video_feed(self):
+        if self.video_feed_button["text"] == "Start Video Feed":
+            self.video_feed_button["text"] = "Stop Video Feed"
+            self.video_feed_running = True
+            self.update_video_feed()
+        else:
+            self.video_feed_button["text"] = "Start Video Feed"
+            self.video_feed_running = False
+
+    def update_video_feed(self):
+        if not self.video_feed_running:
+            return
+
+        frame = core.get_camera_frame()
+        self.video_feed_image = ImageTk.PhotoImage(frame)
+        self.video_feed_label["image"] = self.video_feed_image
+
+        # Update the video feed every 100 milliseconds
+        self.after(100, self.update_video_feed)
 
 root = tk.Tk()
 root.geometry("800x480")
