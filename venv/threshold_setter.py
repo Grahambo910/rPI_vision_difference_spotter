@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import os
+import time
 import core
 
 def update_nominal_label():
@@ -12,46 +13,26 @@ def update_discrepancy_label():
     discrepancy_label_text.set(f"Discrepancy photos: {num_discrepancy_photos}\nDifferences: {discrepancy_differences}")
 
 def on_nominal_button_click():
-    # Use the core.capture_photo and core.compare_images functions
-    if not nominal_images:  # If there are no nominal images, initialize the first one
-        image_name = 'nominal_1.jpg'
-        trigger_power_button()
-        time.sleep(delay)
-        capture_photo(image_name)
-        nominal_images.append(image_name)
-    else:
-        last_nominal_image = nominal_images[-1]
-        image_name = f'nominal_{len(nominal_images) + 1}.jpg'
-        trigger_power_button()
-        time.sleep(delay)
-        capture_photo(image_name)
-        diff = compare_images(last_nominal_image, image_name)
-        nominal_differences.append(diff)
-        nominal_images.append(image_name)
-
+    image_name = "nominal_{}.jpg".format(time.time())
+    core.capture_photo(image_name)
+    nominal_images.append(image_name)
+    if len(nominal_images) > 1:
+        difference = core.compare_images(nominal_images[-2], nominal_images[-1])
+        nominal_differences.append(difference)
     update_nominal_label()
 
 def on_discrepancy_button_click():
-    # Use the core.capture_photo and core.compare_images functions
-    image_name = f'discrepancy_{len(discrepancy_differences) + 1}.jpg'
-    trigger_power_button()
-    time.sleep(delay)
-    capture_photo(image_name)
-
-    differences = [compare_images(nominal_image, image_name) for nominal_image in nominal_images]
-    discrepancy_differences.append(differences)
-
+    image_name = "discrepancy_{}.jpg".format(time.time())
+    core.capture_photo(image_name)
+    difference = min(core.compare_images(nominal_image, image_name) for nominal_image in nominal_images)
+    discrepancy_differences.append(difference)
     update_discrepancy_label()
 
 def on_reset_button_click():
-    for img in nominal_images:
-        os.remove(img)
-    for img in discrepancy_differences:
-        os.remove(img)
-    nominal_images.clear()
-    nominal_differences.clear()
-    discrepancy_differences.clear()
-
+    global nominal_images, nominal_differences, discrepancy_differences
+    nominal_images = []
+    nominal_differences = []
+    discrepancy_differences = []
     update_nominal_label()
     update_discrepancy_label()
 
@@ -61,14 +42,22 @@ root.geometry("800x480")
 nominal_images = []
 nominal_differences = []
 discrepancy_differences = []
-delay = 30  # Adjust this value as needed (in seconds)
 
-# Create the UI elements
-# ... (same as before)
+nominal_label_text = tk.StringVar()
+nominal_label = tk.Label(root, textvariable=nominal_label_text)
+nominal_label.place(x=20, y=90)
 
-try:
-    root.mainloop()
-except KeyboardInterrupt:
-    print("Interrupted. Cleaning up...")
-finally:
-    core.cleanup_gpio()
+discrepancy_label_text = tk.StringVar()
+discrepancy_label = tk.Label(root, textvariable=discrepancy_label_text)
+discrepancy_label.place(x=420, y=90)
+
+nominal_button = tk.Button(root, text="Nominal", command=on_nominal_button_click, width=20, height=5)
+nominal_button.place(x=20, y=20)
+
+discrepancy_button = tk.Button(root, text="Discrepancy", command=on_discrepancy_button_click, width=20, height=5)
+discrepancy_button.place(x=420, y=20)
+
+reset_button = tk.Button(root, text="Reset", command=on_reset_button_click, width=10, height=2)
+reset_button.place(x=700, y=400)
+
+root.mainloop()

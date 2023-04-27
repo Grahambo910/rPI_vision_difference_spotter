@@ -6,16 +6,21 @@ import imagehash
 
 # Configure GPIO
 GPIO.setmode(GPIO.BOARD)
-RELAY_PIN = 11
-GPIO.setup(RELAY_PIN, GPIO.OUT)
+RELAY_PINS = [11, 13, 15, 16, 18, 22, 29, 31]  # Change these to match the pins you're using
+for pin in RELAY_PINS:
+    GPIO.setup(pin, GPIO.OUT)
 
 # Initialize the camera
 camera = PiCamera()
 
-def trigger_power_button():
-    GPIO.output(RELAY_PIN, GPIO.HIGH)
+def trigger_relay_module(relay_index):
+    if relay_index < 0 or relay_index >= len(RELAY_PINS):
+        raise ValueError("Invalid relay index")
+
+    pin = RELAY_PINS[relay_index]
+    GPIO.output(pin, GPIO.HIGH)
     time.sleep(0.5)
-    GPIO.output(RELAY_PIN, GPIO.LOW)
+    GPIO.output(pin, GPIO.LOW)
 
 def capture_photo(image_name):
     camera.capture(image_name)
