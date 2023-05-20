@@ -1,90 +1,42 @@
-import tkinter as tk
-from tkinter import messagebox
-import core
-from threading import Thread
-from PIL import ImageTk
+import cv2
+import RPi.GPIO as GPIO
+import time
+from PIL import Image
+import imagehash
+import numpy as np
 
-class Application(tk.Frame):
-    def __init__(self, master=None):
-        super().__init__(master)
-        self.master = master
-        self.pack()
-        self.create_widgets()
-        self.nominal_images = []
-        self.discrepancy_images = []
+# Configure GPIO
+GPIO.setmode(GPIO.BOARD)
+RELAY_PINS = [11, 13, 15, 16, 18, 22, 29, 31]  # Change these to match the pins you're using
+for pin in RELAY_PINS:
+    GPIO.setup(pin, GPIO.OUT)
 
-    def create_widgets(self):
-        self.nominal_button = tk.Button(self)
-        self.nominal_button["text"] = "Nominal"
-        self.nominal_button["command"] = self.capture_nominal
-        self.nominal_button.place(x=100, y=200, width=200, height=100)
+# Initialize the camera
+camera = cv2.VideoCapture(0)
 
-        self.discrepancy_button = tk.Button(self)
-        self.discrepancy_button["text"] = "Discrepancy"
-        self.discrepancy_button["command"] = self.capture_discrepancy
-        self.discrepancy_button.place(x=500, y=200, width=200, height=100)
+def get_camera_frame():
+    ret, frame = camera.read()
+    return Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
-        self.reset_button = tk.Button(self)
-        self.reset_button["text"] = "Reset"
-        self.reset_button["command"] = self.reset
-        self.reset_button.place(x=350, y=400, width=100, height=50)
+def trigger_relay_module(relay_index):
+    if relay_index < 0 or relay_index >= len(RELAY_PINS):
+        raise ValueError("Invalid relay index")
 
-        self.nominal_label = tk.Label(self)
-        self.nominal_label.place(x=100, y=350)
+    pin = RELAY_PINS[relay_index]
+    GPIO.output(pin, GPIO.HIGH)
+    time.sleep(0.5)
+    GPIO.output(pin, GPIO.LOW)
 
-        self.discrepancy_label = tk.Label(self)
-        self.discrepancy_label.place(x=500, y=350)
+def capture_photo(image_name):
+    ret, frame = camera.read()
+    if ret:
+        cv2.imwrite(image_name, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
-        self.video_feed_label = tk.Label(self)
-        self.video_feed_label.place(x=300, y=50)
+def compare_images(image1, image2):
+    hash1 = imagehash.average_hash(Image.open(image1))
+    hash2 = imagehash.average_hash(Image.open(image2))
+    return hash1 - hash2
 
-        self.video_feed_button = tk.Button(self)
-        self.video_feed_button["text"] = "Start Video Feed"
-        self.video_feed_button["command"] = self.toggle_video_feed
-        self.video_feed_button.place(x=300, y=20, width=200, height=30)
-
-    def update_labels(self):
-        nominal_diff = core.get_difference(self.nominal_images) if self.nominal_images else 0
-        discrepancy_diff = core.get_difference(self.discrepancy_images) if self.discrepancy_images else 0
-        discrepancy_range = core.get_difference_range(self.nominal_images, self.discrepancy_images)
-
-        self.nominal_label["text"] = f"Nominal images: {len(self.nominal_images)}, difference: {nominal_diff}"
-        self.discrepancy_label["text"] = f"Discrepancy images: {len(self.discrepancy_images)}, difference: {discrepancy_diff}, range: {discrepancy_range}"
-
-    def capture_nominal(self):
-        self.nominal_images.append(core.capture_photo())
-        self.update_labels()
-
-    def capture_discrepancy(self):
-        self.discrepancy_images.append(core.capture_photo())
-        self.update_labels()
-
-    def reset(self):
-        self.nominal_images = []
-        self.discrepancy_images = []
-        self.update_labels()
-
-    def toggle_video_feed(self):
-        if self.video_feed_button["text"] == "Start Video Feed":
-            self.video_feed_button["text"] = "Stop Video Feed"
-            self.video_feed_running = True
-            self.update_video_feed()
-        else:
-            self.video_feed_button["text"] = "Start Video Feed"
-            self.video_feed_running = False
-
-    def update_video_feed(self):
-        if not self.video_feed_running:
-            return
-
-        frame = core.get_camera_frame()
-        self.video_feed_image = ImageTk.PhotoImage(frame)
-        self.video_feed_label["image"] = self.video_feed_image
-
-        # Update the video feed every 100 milliseconds
-        self.after(100, self.update_video_feed)
-
-root = tk.Tk()
-root.geometry("800x480")
-app = Application(master=root)
-app.mainloop()
+def cleanup_gpio():
+    GPIO.cleanup()
+    camera.release()
