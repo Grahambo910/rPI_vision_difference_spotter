@@ -116,6 +116,4 @@ Please ensure your code is well-commented and, if applicable, update or add docu
 
 ## License
 
-This project is currently not under a specific license. Please consider adding a license if you plan to share or distribute this software. Common open-source licenses include MIT, Apache 2.0, or GPL.
-
-If you are the project owner, you can add a `LICENSE` file to your repository and update this section to reflect the chosen license.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
